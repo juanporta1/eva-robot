@@ -21,12 +21,7 @@ stream = audio.open(format=FORMAT,
 
 print("Grabando...")
 
-frames = []
 
-# Grabar audio en chunks y guardarlos
-for i in range(0, int(RATE / CHUNK * RECORD_SECONDS)):
-    data = stream.read(CHUNK)
-    frames.append(data)
 
 print("Grabación finalizada.")
 
@@ -36,8 +31,4 @@ stream.close()
 audio.terminate()
 
 # Guardar la grabación en un archivo WAV
-with wave.open(WAVE_OUTPUT_FILENAME, 'wb') as wf:
-    wf.setnchannels(CHANNELS)
-    wf.setsampwidth(audio.get_sample_size(FORMAT))
-    wf.setframerate(RATE)
-    wf.writeframes(b''.join(frames))
+

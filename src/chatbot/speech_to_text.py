@@ -4,12 +4,12 @@ import os
 load_dotenv()
 key = os.getenv("CHATGPT_KEY")
 client = openai.OpenAI(api_key=key)
+def convert(path):
+    audio_file = open(path,"rb")
 
-audio_file = open("src/chatbot/grabacion.wav","rb")
+    response = client.audio.transcriptions.create(
+        model= "whisper-1",
+        file=audio_file
+        )
 
-response = client.audio.transcriptions.create(
-    model= "whisper-1",
-    file=audio_file
-    )
-
-print(response.text)
+    return response.text
