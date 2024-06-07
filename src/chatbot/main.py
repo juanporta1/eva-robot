@@ -99,11 +99,10 @@ class Eva:
         self.cap = cv2.VideoCapture(0)
         self.persons = db.getFaces()
         self.name = "Nadie"
+        recognitionThread = threading.Thread(target=self.recognitionFunction)
+        recognitionThread.start()
         while self.finish:
             
-            recognitionThread = threading.Thread(target=self.recognitionFunction,)
-            recognitionThread.start()
-            time.sleep(1)
             print(self.name)
             self.record()
             self.get_response(self.name)
@@ -120,11 +119,11 @@ class Eva:
         while True:
             
             result = False
+            name = ""
             ret, frame = self.cap.read()     
             if ret:
                 frame = cv2.flip(frame,1)
                 locations = face_recognition.face_locations(frame)
-                print(locations)
                 copyFrame = frame.copy()
                 biggerFace = None
                 biggerArea = 0
@@ -132,42 +131,41 @@ class Eva:
                 for faceLocation in locations:
                     top,right,bottom,left = faceLocation
                     
-                    isBigger = False
-                    
-                    rostro = cv2.resize(copyFrame[top-10:bottom+10,left-10:right+10],(150,150),interpolation=cv2.INTER_CUBIC)
-                    encodeFace = face_recognition.face_encodings(frame,known_face_locations=[faceLocation])[0]
-                    for person in self.persons:
-                        image = cv2.imread(os.getcwd() + f"/src/chatbot/faces/{person[0]}.jpg")
-                        dbPerson = face_recognition.face_encodings(image)[0]
-                        result = face_recognition.compare_faces((dbPerson), encodeFace)
-                        if result:
-                            name = person[0]
-                            
-                            break
-                        else:
-                            name = "Desconocido"
-                            
-                    if result:
-                        cv2.rectangle(frame,(left,top),(right,bottom), (0,255,0),2) 
-                    if not result:
-                        cv2.rectangle(frame,(left,top),(right,bottom), (255,0,0),2)
-                    
-                    
                     widht = right - left
                     height = bottom - top
                     area = widht * height
+                    encodeFace = face_recognition.face_encodings(frame,known_face_locations=[faceLocation])[0]
                     if area > biggerArea:
                         biggerFace = encodeFace  
-                        isBigger = True 
+                        
+                    rostro = cv2.resize(copyFrame[top-10:bottom+10,left-10:right+10],(150,150),interpolation=cv2.INTER_CUBIC)
+                    
+                    cv2.rectangle(frame,(left,top),(right,bottom), (0,255,0),2)
+                for person in self.persons:
+                    if locations:    
+                        image = cv2.imread(os.getcwd() + f"/src/chatbot/faces/{person[0]}.jpg")
+                        imageLoc = face_recognition.face_locations(image)[0]
+                        dbPerson = face_recognition.face_encodings(image,known_face_locations=[imageLoc])[0]
+                        result = face_recognition.compare_faces([dbPerson], encodeFace)[0]
+                        
+                        if result == True:
+                            name = person[0]
+                            print("Resultado: ",result, " Name: ", name)
+                            break
+                        else:
+                            name = "Desconocido"
+        
                 if not locations:
                     name = "Nadie"
                 cv2.imshow("Frame",frame)  
-                 
+                
             if cv2.waitKey(1) == 27:
                 break
             self.name = name
         self.cap.release()
         cv2.destroyAllWindows() 
+        
+        
     def start(self):
         tkThread = threading.Thread(target=self.main)
         self.root = tkinter.Tk()

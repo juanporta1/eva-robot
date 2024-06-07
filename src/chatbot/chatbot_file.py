@@ -28,7 +28,10 @@ def get_response(input,context,name):
     #     max_tokens=1
     # )
     
-    
+    # has_name = client.chat.completions.create(
+    #     model="gpt-3.5-turbo",
+    #     messages=[{"role": "system", "content": "Primero debes detectar si el prompt tiene "}]
+    # )
     
     
     context.append({"role": "user", "content": f"""{prompt}
