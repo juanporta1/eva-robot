@@ -1,5 +1,7 @@
 import pymysql
+import ast, numpy
 from sshtunnel import SSHTunnelForwarder
+import face_recognition
 def getFaces():
     with SSHTunnelForwarder(("gestion-imdf.ddns.net", 22),
                             ssh_username="alumno6to",
@@ -14,14 +16,17 @@ def getFaces():
         if connection is not None:
             cursor = connection.cursor()
             
-            cursor.execute('''SELECT (nombre) FROM Persona''')
+            cursor.execute('''SELECT nombre,encode FROM Persona''')
             
             rows = cursor.fetchall()
-            
+            rows = list(rows)
             connection.commit()
+            for i,person in enumerate(rows):
+                    rows[i] = list(person)
+                    rows[i][1] = numpy.array(eval(person[1]))
     return rows
 
-def setNewFace(nombre):
+def setNewFace(nombre,encode):
     with SSHTunnelForwarder(("gestion-imdf.ddns.net", 22),
                             ssh_username="alumno6to",
                             ssh_password="Ismdf.309",
@@ -32,9 +37,10 @@ def setNewFace(nombre):
                                     port=tunnel.local_bind_port,
                                     host="127.0.0.1",
                                     database="jporta553")
+        
         if connection is not None:
             cursor = connection.cursor()
-            
-            cursor.execute(f'''INSERT INTO Persona (nombre) VALUES ({nombre})''')
+            encode = str(encode.tolist())    
+            cursor.execute('''INSERT INTO Persona (nombre, encode) VALUES (%s, %s)''', (nombre, encode))
             
             connection.commit()

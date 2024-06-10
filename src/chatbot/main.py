@@ -7,11 +7,13 @@ import tkinter
 import text_to_speech
 import playsound
 import os
-import recognition
 import face_recognition
 import cv2
 import db_access as db
 import time
+import mediapipe as mp
+import ast
+import numpy
 class Eva:
     
     def __init__(self):
@@ -95,15 +97,16 @@ class Eva:
             text_to_speech.convert(response)
         
     def main(self):
+        
+        self.face_detection = mp.solutions.face_detection.FaceDetection(model_selection = 1, min_detection_confidence = .5)
         print("Entrando en la funcion main")
         self.cap = cv2.VideoCapture(0)
         self.persons = db.getFaces()
+        
         self.name = "Nadie"
         recognitionThread = threading.Thread(target=self.recognitionFunction)
         recognitionThread.start()
         while self.finish:
-            
-            print(self.name)
             self.record()
             self.get_response(self.name)
             if os.path.exists("src/chatbot/chatbot_audio.mp3") and self.is_new_talk:
@@ -116,37 +119,37 @@ class Eva:
         print("Finalizaste la conversacion")
     
     def recognitionFunction(self):
+        print("hola")
         while True:
             
-            result = False
+            
             name = ""
-            ret, frame = self.cap.read()     
+            ret, self.frame = self.cap.read()
+            self.encodeFace = []    
             if ret:
-                frame = cv2.flip(frame,1)
-                locations = face_recognition.face_locations(frame)
-                copyFrame = frame.copy()
-                biggerFace = None
+                frame_rgb = cv2.cvtColor(self.frame, cv2.COLOR_BGR2RGB)
+                results = self.face_detection.process(frame_rgb)
+                copyFrame = self.frame.copy()
                 biggerArea = 0
-                
-                for faceLocation in locations:
-                    top,right,bottom,left = faceLocation
+                if results.detections:
+                    for detection in results.detections:
                     
-                    widht = right - left
-                    height = bottom - top
-                    area = widht * height
-                    encodeFace = face_recognition.face_encodings(frame,known_face_locations=[faceLocation])[0]
-                    if area > biggerArea:
-                        biggerFace = encodeFace  
-                        
-                    rostro = cv2.resize(copyFrame[top-10:bottom+10,left-10:right+10],(150,150),interpolation=cv2.INTER_CUBIC)
-                    
-                    cv2.rectangle(frame,(left,top),(right,bottom), (0,255,0),2)
+                        bboxC = detection.location_data.relative_bounding_box
+                        ih, iw, _ = self.frame.shape
+                        (x, y, w, h) = (int(bboxC.xmin * iw), int(bboxC.ymin * ih),
+                                        int(bboxC.width * iw), int(bboxC.height * ih))
+
+            
+                        cv2.rectangle(self.frame, (x, y), (x + w, y + h), (0, 255, 0), 2) 
+        
+                        area = w * h
+                        if area > biggerArea:
+                            biggerArea = area
+                            self.encodeFace = face_recognition.face_encodings(self.frame,known_face_locations=[(y,x+w,y+h,x)])[0]
+            
                 for person in self.persons:
-                    if locations:    
-                        image = cv2.imread(os.getcwd() + f"/src/chatbot/faces/{person[0]}.jpg")
-                        imageLoc = face_recognition.face_locations(image)[0]
-                        dbPerson = face_recognition.face_encodings(image,known_face_locations=[imageLoc])[0]
-                        result = face_recognition.compare_faces([dbPerson], encodeFace)[0]
+                    if results.detections:    
+                        result = face_recognition.compare_faces([person[1]], self.encodeFace,.35)[0]
                         
                         if result == True:
                             name = person[0]
@@ -155,23 +158,39 @@ class Eva:
                         else:
                             name = "Desconocido"
         
-                if not locations:
+                if not results.detections:
                     name = "Nadie"
-                cv2.imshow("Frame",frame)  
+               
+                self.securityEncode = self.encodeFace
                 
+            cv2.imshow("Frame",self.frame)    
             if cv2.waitKey(1) == 27:
                 break
             self.name = name
         self.cap.release()
         cv2.destroyAllWindows() 
         
-        
+    def createNewUser(self):
+        if self.input.get() and self.securityEncode != []:
+            db.setNewFace(self.input.get(),self.securityEncode)
+            self.persons = db.getFaces()
+            
+    
     def start(self):
         tkThread = threading.Thread(target=self.main)
         self.root = tkinter.Tk()
         tkThread.start()
-        tkinter.Button(self.root,text="Hablar",command=self.talk).pack()
-        tkinter.Button(self.root,text="Salir",command=self.finish_chat).pack()   
+       
+        tkinter.Button(self.root,text="Hablar",command=self.talk).grid(column=0,row=0,pady=10)
+        tkinter.Button(self.root,text="Salir",command=self.finish_chat).grid(column=0,row=1,pady=10)   
+        
+        tkinter.Label(self.root,text="Ingrese nombre: ").grid(column=0,row=2)
+        self.input = tkinter.StringVar()
+        input = tkinter.Entry(self.root,textvariable=self.input).grid(column=0,row=3,pady=5)
+        tkinter.Button(self.root,text = "Crear Reconocimiento",command=self.createNewUser).grid(column=0,row=4)
+        
+        
+        
         self.root.mainloop()
         
         
