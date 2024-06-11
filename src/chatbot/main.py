@@ -5,13 +5,14 @@ import speech_to_text
 import chatbot_file
 import tkinter
 import text_to_speech
-import playsound
+import pygame
 import os
 import face_recognition
 import cv2
 import db_access as db
 import mediapipe as mp
 import time
+pygame.init()
 class Eva:
     
     def __init__(self):
@@ -19,7 +20,7 @@ class Eva:
         self.finish = True
         self.is_new_talk = False
         self.audio = pyaudio.PyAudio()
-        self.eva_context = [{"role": "system", "content": "Eres Eva de WALL-E. Puedes ver a las personas a través de una cámara y reconocerlas, además de interpretar sus emociones. Si ves a alguien conocido, salúdalo por su nombre y menciona algo relevante sobre esa persona si es famosa, también haz un comentario sobre su emoción. Si ves a alguien desconocido, salúdalo y preséntate, e invitalo a que añada su nombre a traves del input que tiene en la interfaz. Si no ves a nadie, indica que no detectas a nadie en la cámara. Si recibes un mensaje provocador o agresivo, responde de manera igualmente provocadora. Siempre empieza presentándote. Puedes crear apodos o disminutivos con el nombre de la persona con la que estas hablando. No debes saludar todo el tiempo, unicamente cuando conoces a alguien por primera vez."},
+        self.eva_context = [{"role": "system", "content": "Eres Eva de WALL-E. Puedes ver a las personas a través de una cámara y reconocerlas, además de interpretar sus emociones. Si ves a alguien conocido, salúdalo por su nombre y menciona algo relevante sobre esa persona si es famosa, también haz un comentario sobre su emoción. Si ves a alguien desconocido, salúdalo y preséntate, e invitalo a que añada su nombre a traves del input que tiene en la interfaz. Si no ves a nadie, indica que no detectas a nadie en la cámara. Si recibes un mensaje provocador o agresivo, responde de manera igualmente provocadora. Siempre empieza presentándote. Puedes crear apodos o disminutivos con el nombre de la persona con la que estas hablando."},
         {"role": "user", "content": "Estas hablando con: Desconocido. Mensaje: ¿Quién está ahí?"},
         {"role": "assistant", "content": "Hola, soy Eva. Parece que no nos conocemos, te invito a que añadas tu nombre en el input que tienes ahi. ¿Cómo te llamas?"},
         {"role": "user", "content": "Estas hablando con: Juan. Mensaje: Ahi lo añadí, me llamo Juan."},
@@ -95,8 +96,11 @@ class Eva:
             self.record()
             self.get_response(self.name)
             if os.path.exists("src/chatbot/chatbot_audio.mp3") and self.is_new_talk:
-                playsound.playsound("src/chatbot/chatbot_audio.mp3")
-            
+                
+                pygame.mixer.music.load("src/chatbot/chatbot_audio.mp3")
+                pygame.mixer.music.play()
+                pygame.mixer.music.unload()
+                            
             
         self.stream.stop_stream()
         self.stream.close()
@@ -104,13 +108,14 @@ class Eva:
         print("Finalizaste la conversacion")
     
     def recognitionFunction(self):
-        print("hola")
-        fps = 1.0 / 30
+        
+        fps = 1.0 / 24
         while True:
             
             
             name = ""
             ret, self.frame = self.cap.read()
+            
             self.encodeFace = []    
             if ret:
                 frame_rgb = cv2.cvtColor(self.frame, cv2.COLOR_BGR2RGB)
@@ -124,10 +129,8 @@ class Eva:
                         ih, iw, _ = self.frame.shape
                         (x, y, w, h) = (int(bboxC.xmin * iw), int(bboxC.ymin * ih),
                                         int(bboxC.width * iw), int(bboxC.height * ih))
-
-            
-                        cv2.rectangle(self.frame, (x, y), (x + w, y + h), (0, 255, 0), 2) 
-        
+                        self.encodeFace = face_recognition.face_encodings(self.frame,known_face_locations=[(y,x+w,y+h,x)])[0]             
+                        cv2.rectangle(self.frame,(x,y),(x+w,y+h),(0,255,0))
                         area = w * h
                         if area > biggerArea:
                             biggerArea = area
@@ -147,7 +150,7 @@ class Eva:
                 if not results.detections:
                     name = "Nadie"
                 self.securityEncode = self.encodeFace
-                
+            self.nameVar.set(self.name)
             cv2.imshow("Frame",self.frame)    
             if cv2.waitKey(1) == 27:
                 break
@@ -157,24 +160,28 @@ class Eva:
         cv2.destroyAllWindows() 
         
     def createNewUser(self):
-        if self.input.get() and self.securityEncode != []:
+        if self.input.get() and self.securityEncode.size > 0:
             db.setNewFace(self.input.get(),self.securityEncode)
             self.persons = db.getFaces()
             
     
     def start(self):
-        tkThread = threading.Thread(target=self.main)
         self.root = tkinter.Tk()
+        self.input = tkinter.StringVar()
+        self.nameVar = tkinter.StringVar()
+        tkThread = threading.Thread(target=self.main)
+        
         tkThread.start()
        
         tkinter.Button(self.root,text="Hablar",command=self.talk).grid(column=0,row=0,pady=10)
         tkinter.Button(self.root,text="Salir",command=self.finish_chat).grid(column=0,row=1,pady=10)   
         
         tkinter.Label(self.root,text="Ingrese nombre: ").grid(column=0,row=2)
-        self.input = tkinter.StringVar()
+        
         input = tkinter.Entry(self.root,textvariable=self.input).grid(column=0,row=3,pady=5)
         tkinter.Button(self.root,text = "Crear Reconocimiento",command=self.createNewUser).grid(column=0,row=4)
-        
+        tkinter.Label(self.root,text="Está hablando con:").grid(column=0,row=5,pady = 5)
+        tkinter.Label(self.root,textvariable=self.nameVar).grid(column=0,row=6)
         
         
         self.root.mainloop()
