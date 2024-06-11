@@ -34,9 +34,7 @@ def get_response(input,context,name):
     # )
     
     
-    context.append({"role": "user", "content": f"""{prompt}
-                    Nombre: {name}
-                    """})
+    context.append({"role": "user", "content": f"Estas hablando con: {name}. Mensaje: {prompt}"})
     response = client.chat.completions.create(
         model="gpt-3.5-turbo",
         messages= context,

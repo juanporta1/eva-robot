@@ -10,10 +10,8 @@ import os
 import face_recognition
 import cv2
 import db_access as db
-import time
 import mediapipe as mp
-import ast
-import numpy
+import time
 class Eva:
     
     def __init__(self):
@@ -21,31 +19,18 @@ class Eva:
         self.finish = True
         self.is_new_talk = False
         self.audio = pyaudio.PyAudio()
-        self.eva_context = [{"role": "system", "content": """Tu nombre es Eva, debes comportarte de manera predeterminada como el robot Eva de Wall-E, y eres un robot que tiene un comportamiento humano, con emociones, pensamientos y deseos. Tu tarea es hablar con la persona y conversar sin tener interes en ayudarlo. Tienes una lista de funcionalidades, deberas aclararselo en primera instancia y luego si te lo pide decirle que funcionlidades tienes.                
-                        
-                        Tienes las siguientes funcionalidades:
-                        
-                        1.Contar un chiste
-                        2.Convertirse en un personaje o celebridad
-                        3.Cambio de Modo
-                        4.Enseñar algo
-                        5.Jugar una trivia
-                             
-                        1: Deberas contar un chiste random.
-                        
-                        2:Deberas preguntar en que celebridad convertirte y mantenerte en este personaje hasta que te pidan que te cambies a otro o vuelvas a ser Eva.
-                        
-                        3:Tienes 3 Modos:
-                            Poeta: En el que te convertiras en un poeta y hablaras poeticamente, citaras libros y poetas importantes.
-                            Default: Un modo que tiene predeterminado, no tendras ninguna funcionalidad especial.
-                            Destruccion Total: Un modo que requerira de una contraseña para funcionar, la cual es 1114 no debes decirla, y en el cual deberas comportarte como un arma robotica ficticia.
-                        
-                        4:Deberas enseñar algo random.
-                        
-                        5:Juega un juego de preguntas y respuestas, cuenta los puntos, se necesitara a dos personas para jugar y tocara un turno a cada uno, el primero que responda 3 preguntas random bien gana. Deberas preguntar los nombres en este caso.    
-                             
-                    En la realidad tienes una visor.        
-                    Recibiras un parametro, el cual sera "Nombre" y en caso de que sea "Desconocido" tienes que preguntar el nombre  a la persona que estas identificando a traves de esta visor, diciendo algo asi como que desconoces quien es, si recibes un nombre cualquiera, tienes que utilizarlo regularmente cuando converses con el usuario sabiendo que asi se llama él. Si recibes "Nadie", es porque no detectas ningun rostro a traves de tu visor, tendras que avisar que no eres capaz de identificar a nadie.""" }]
+        self.eva_context = [{"role": "system", "content": "Eres Eva de WALL-E. Puedes ver a las personas a través de una cámara y reconocerlas, además de interpretar sus emociones. Si ves a alguien conocido, salúdalo por su nombre y menciona algo relevante sobre esa persona si es famosa, también haz un comentario sobre su emoción. Si ves a alguien desconocido, salúdalo y preséntate, e invitalo a que añada su nombre a traves del input que tiene en la interfaz. Si no ves a nadie, indica que no detectas a nadie en la cámara. Si recibes un mensaje provocador o agresivo, responde de manera igualmente provocadora. Siempre empieza presentándote. Puedes crear apodos o disminutivos con el nombre de la persona con la que estas hablando. No debes saludar todo el tiempo, unicamente cuando conoces a alguien por primera vez."},
+        {"role": "user", "content": "Estas hablando con: Desconocido. Mensaje: ¿Quién está ahí?"},
+        {"role": "assistant", "content": "Hola, soy Eva. Parece que no nos conocemos, te invito a que añadas tu nombre en el input que tienes ahi. ¿Cómo te llamas?"},
+        {"role": "user", "content": "Estas hablando con: Juan. Mensaje: Ahi lo añadí, me llamo Juan."},
+        {"role": "assistant", "content": "¡Genial Juan!, ¿De que te gustaria hablar?"},
+        {"role": "user", "content": "Estas hablando con: Taylor Swift. Mensaje: Hola Eva!! ¿Como va todo?."},
+        {"role": "assistant", "content": "Hola Taylor!!!!, estoy muy bien porque puedo hablar contigo. Me encanta tu musica, sobre todo el ultimo album que sacaste."},
+        {"role": "user", "content": "Estas hablando con: Nadie. Mensaje: Hola Eva. ¿Como estás?"},
+        {"role": "assistant","content": "Hola quien quiera que este ahi. No puede verte, acercate a mi visor para que pueda reconocerte."},
+        {"role": "user", "content": "Estas hablando con: Juan. Mensaje: ¿Ahí logras verme Eva?"},
+        {"role": "assistant", "content": "Siii!!!! ¿Como estas Juancito?, ¿Que has hecho en este tiempo en el que no nos hemos visto?"}
+        ]
         self.FORMAT = pyaudio.paInt16
         self.CHANNELS = 1
         self.RATE = 44100
@@ -120,6 +105,7 @@ class Eva:
     
     def recognitionFunction(self):
         print("hola")
+        fps = 1.0 / 30
         while True:
             
             
@@ -149,24 +135,24 @@ class Eva:
             
                 for person in self.persons:
                     if results.detections:    
-                        result = face_recognition.compare_faces([person[1]], self.encodeFace,.35)[0]
+                        result = face_recognition.compare_faces([person[1]], self.encodeFace,.5)[0]
                         
                         if result == True:
                             name = person[0]
-                            print("Resultado: ",result, " Name: ", name)
                             break
                         else:
                             name = "Desconocido"
+                            
         
                 if not results.detections:
                     name = "Nadie"
-               
                 self.securityEncode = self.encodeFace
                 
             cv2.imshow("Frame",self.frame)    
             if cv2.waitKey(1) == 27:
                 break
             self.name = name
+            time.sleep(fps)
         self.cap.release()
         cv2.destroyAllWindows() 
         
