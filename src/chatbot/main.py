@@ -6,6 +6,7 @@ import chatbot_file
 import tkinter
 import text_to_speech
 import pygame
+import playsound as ps
 import os
 import face_recognition
 import cv2
@@ -83,7 +84,7 @@ class Eva:
             text_to_speech.convert(response)
         
     def main(self):
-        
+        self.id = None
         self.face_detection = mp.solutions.face_detection.FaceDetection(model_selection = 1, min_detection_confidence = .5)
         print("Entrando en la funcion main")
         self.cap = cv2.VideoCapture(0)
@@ -97,9 +98,7 @@ class Eva:
             self.get_response(self.name)
             if os.path.exists("src/chatbot/chatbot_audio.mp3") and self.is_new_talk:
                 
-                pygame.mixer.music.load("src/chatbot/chatbot_audio.mp3")
-                pygame.mixer.music.play()
-                pygame.mixer.music.unload()
+                ps.playsound("src/chatbot/chatbot_audio.mp3",False)
                             
             
         self.stream.stop_stream()
@@ -112,7 +111,7 @@ class Eva:
         fps = 1.0 / 24
         while True:
             
-            
+            self.id  = None
             name = ""
             ret, self.frame = self.cap.read()
             
@@ -142,6 +141,7 @@ class Eva:
                         
                         if result == True:
                             name = person[0]
+                            self.id = person[2]
                             break
                         else:
                             name = "Desconocido"
@@ -151,19 +151,22 @@ class Eva:
                     name = "Nadie"
                 self.securityEncode = self.encodeFace
             self.nameVar.set(self.name)
-            cv2.imshow("Frame",self.frame)    
+            # cv2.imshow("Frame",self.frame)    
             if cv2.waitKey(1) == 27:
                 break
             self.name = name
+            print(self.id)
             time.sleep(fps)
         self.cap.release()
         cv2.destroyAllWindows() 
         
-    def createNewUser(self):
-        if self.input.get() and self.securityEncode.size > 0:
+    def userController(self):
+        if self.input.get() and self.securityEncode.size > 0 and self.name == "Desconocido":
             db.setNewFace(self.input.get(),self.securityEncode)
             self.persons = db.getFaces()
-            
+        if self.input.get() and self.securityEncode.size > 0 and self.name != "Desconocido":
+            db.alterFace(self.input.get(), self.id)
+            self.persons  = db.getFaces()
     
     def start(self):
         self.root = tkinter.Tk()
@@ -179,7 +182,7 @@ class Eva:
         tkinter.Label(self.root,text="Ingrese nombre: ").grid(column=0,row=2)
         
         input = tkinter.Entry(self.root,textvariable=self.input).grid(column=0,row=3,pady=5)
-        tkinter.Button(self.root,text = "Crear Reconocimiento",command=self.createNewUser).grid(column=0,row=4)
+        tkinter.Button(self.root,text = "Crear Reconocimiento",command=self.userController).grid(column=0,row=4)
         tkinter.Label(self.root,text="Está hablando con:").grid(column=0,row=5,pady = 5)
         tkinter.Label(self.root,textvariable=self.nameVar).grid(column=0,row=6)
         

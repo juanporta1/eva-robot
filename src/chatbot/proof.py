@@ -1,3 +1,3 @@
-import playsound
+import playsound as ps
 
-playsound.playsound("src/chatbot/record.wav")
+ps.playsound("src/chatbot/chatbot_audio.mp3")
