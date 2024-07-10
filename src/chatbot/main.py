@@ -149,7 +149,7 @@ class Eva:
                 
                 self.securityEncode = self.encodeFace
             self.nameVar.set(self.name)
-            # cv2.imshow("Frame",self.frame)    
+            cv2.imshow("Frame",self.frame)    
             if cv2.waitKey(1) == 27:
                 break
             self.name = name
