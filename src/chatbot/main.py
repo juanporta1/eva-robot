@@ -1,11 +1,9 @@
-import pyaudio
 import threading
 import wave
 import speech_to_text
 import chatbot_file
 import tkinter
 import text_to_speech
-import pygame
 import playsound as ps
 import os
 import face_recognition
@@ -13,7 +11,8 @@ import cv2
 import db_access as db
 import mediapipe as mp
 import time
-pygame.init()
+import pyaudio
+
 class Eva:
     
     def __init__(self):
@@ -149,6 +148,7 @@ class Eva:
         
                 if not results.detections:
                     name = "Nadie"
+                
                 self.securityEncode = self.encodeFace
             self.nameVar.set(self.name)
             # cv2.imshow("Frame",self.frame)    
