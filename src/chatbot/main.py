@@ -59,15 +59,13 @@ class Eva:
         self.is_new_talk = False
         while self.is_recording:
             print("Grabando")
-            for i in range(0, int(self.RATE / self.CHUNK * self.RECORD_SECONDS)):
-                data = self.stream.read(self.CHUNK)
-                frames.append(data)
-                if not self.is_recording:
-                    break
-            self.is_new_talk = True
+            data = self.stream.read(self.CHUNK)
+            frames.append(data)
+            
             
             if not self.is_recording:
                 print("Dejando de grabar")
+                self.is_new_talk = True
                 break
         if frames:
             with wave.open(self.WAVE_OUTPUT_FILENAME, 'wb') as wf:
@@ -84,7 +82,6 @@ class Eva:
         
     def main(self):
         self.id = None
-        self.face_detection = mp.solutions.face_detection.FaceDetection(model_selection = 1, min_detection_confidence = .5)
         print("Entrando en la funcion main")
         self.cap = cv2.VideoCapture(0)
         self.persons = db.getFaces()
@@ -117,16 +114,17 @@ class Eva:
             self.encodeFace = []    
             if ret:
                 frame_rgb = cv2.cvtColor(self.frame, cv2.COLOR_BGR2RGB)
-                results = self.face_detection.process(frame_rgb)
+                results = face_recognition.face_locations(self.frame)
                 copyFrame = self.frame.copy()
                 biggerArea = 0
-                if results.detections:
-                    for detection in results.detections:
-                    
-                        bboxC = detection.location_data.relative_bounding_box
-                        ih, iw, _ = self.frame.shape
-                        (x, y, w, h) = (int(bboxC.xmin * iw), int(bboxC.ymin * ih),
-                                        int(bboxC.width * iw), int(bboxC.height * ih))
+                if results:
+                    for detection in results:
+                        top,right,bottom,left = detection
+                        y = top
+                        x = left
+                        w = right - left
+                        h = bottom - top
+                        
                         self.encodeFace = face_recognition.face_encodings(self.frame,known_face_locations=[(y,x+w,y+h,x)])[0]             
                         cv2.rectangle(self.frame,(x,y),(x+w,y+h),(0,255,0))
                         area = w * h
@@ -135,7 +133,7 @@ class Eva:
                             self.encodeFace = face_recognition.face_encodings(self.frame,known_face_locations=[(y,x+w,y+h,x)])[0]
             
                 for person in self.persons:
-                    if results.detections:    
+                    if results:    
                         result = face_recognition.compare_faces([person[1]], self.encodeFace,.5)[0]
                         
                         if result == True:
@@ -146,7 +144,7 @@ class Eva:
                             name = "Desconocido"
                             
         
-                if not results.detections:
+                if not results:
                     name = "Nadie"
                 
                 self.securityEncode = self.encodeFace

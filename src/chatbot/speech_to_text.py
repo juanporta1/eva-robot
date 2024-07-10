@@ -11,5 +11,5 @@ def convert(path):
         model= "whisper-1",
         file=audio_file
         )
-
+    print(response.text)
     return response.text
