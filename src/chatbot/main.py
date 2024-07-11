@@ -12,7 +12,7 @@ import db_access as db
 import mediapipe as mp
 import time
 import speech_recognition as sr
-
+import pyaudio
 class Eva:
     
     def __init__(self):
@@ -32,29 +32,61 @@ class Eva:
         {"role": "user", "content": "Estas hablando con: Juan. Mensaje: ¿Ahí logras verme Eva?"},
         {"role": "assistant", "content": "Siii!!!! ¿Como estas Juancito?, ¿Que has hecho en este tiempo en el que no nos hemos visto?"}
         ]
+        self.audio = pyaudio.PyAudio()
+        self.FORMAT = pyaudio.paInt16
+        self.CHANNELS = 1
+        self.RATE = 44100
+        self.CHUNK = 1024
+        self.RECORD_SECONDS = 10
+        self.WAVE_OUTPUT_FILENAME = "src/chatbot/record.wav"
+
+        self.stream = self.audio.open(format=self.FORMAT,
+                    channels=self.CHANNELS,
+                    rate=self.RATE,
+                    input=True,
+                    frames_per_buffer=self.CHUNK)
         
     def finish_chat(self):    
         self.finish = False
         self.root.destroy()
     def talk(self):
-        self.is_recording = True
+        if self.is_recording:
+            self.is_recording = False
+        else:
+            self.is_recording = True
     
-    def record(self):
-        listener = sr.Recognizer()
+    # def record(self):
         
-        self.is_new_talk = False
-        with sr.Microphone() as source:
-            print("Espera un segundo")
-            listener.adjust_for_ambient_noise(source)
-            time.sleep(.5)
-            print("Habla ahora")
-            audio = listener.listen(source)
+        
+    #     self.is_new_talk = False
+    #     with sr.Microphone() as source:
+    #         print("Habla ahora")
+    #         audio = self.listener.listen(source)
             
-            with open("./src/chatbot/record.wav","wb") as f:
-                f.write(audio.get_wav_data())
+    #         with open("./src/chatbot/record.wav","wb") as f:
+    #             f.write(audio.get_wav_data())
+    #             self.is_new_talk = True
+    #             self.is_recording = False
+
+    def record(self):
+        frames = []
+        self.is_new_talk = False
+        while self.is_recording:
+            print("Grabando")
+            data = self.stream.read(self.CHUNK)
+            frames.append(data)
+            
+            
+            if not self.is_recording:
+                print("Dejando de grabar")
                 self.is_new_talk = True
-                self.is_recording = False
-                
+                break
+        if frames:
+            with wave.open(self.WAVE_OUTPUT_FILENAME, 'wb') as wf:
+                wf.setnchannels(self.CHANNELS)
+                wf.setsampwidth(self.audio.get_sample_size(self.FORMAT))
+                wf.setframerate(self.RATE)
+                wf.writeframes(b''.join(frames))
                 
     def get_response(self,name):         
         if self.is_new_talk:  
@@ -64,88 +96,76 @@ class Eva:
            
         
     def main(self):
-        self.id = None
+        
         print("Entrando en la funcion main")
         self.cap = cv2.VideoCapture(0)
         self.persons = db.getFaces()
-        
+        self.actualEncode = self.persons[0][1]
         self.name = "Nadie"
-        recognitionThread = threading.Thread(target=self.recognitionFunction)
-        recognitionThread.start()
+        self.id = None
         while self.finish:
+            self.securityEncode = self.findFace()
             if self.is_recording:
                 self.record()
             if self.is_new_talk: 
                 self.get_response(self.name)
+            
             if os.path.exists("src/chatbot/chatbot_audio.mp3") and self.is_new_talk:
-                
                 ps.playsound("src/chatbot/chatbot_audio.mp3",False)
-                self.is_new_talk = False            
-
+                self.is_new_talk = False
+            time.sleep(1)
+            cv2.destroyAllWindows()             
+        self.cap.release()
         print("Finalizaste la conversacion")
-    
-    def recognitionFunction(self):
         
-        fps = 1.0 / 24
-        while True:
-            
-            self.id  = None
-            name = ""
-            ret, self.frame = self.cap.read()
-            
-            self.encodeFace = []    
-            if ret:
-                frame_rgb = cv2.cvtColor(self.frame, cv2.COLOR_BGR2RGB)
-                results = face_recognition.face_locations(self.frame)
-                copyFrame = self.frame.copy()
-                biggerArea = 0
-                if results:
-                    for detection in results:
-                        top,right,bottom,left = detection
-                        y = top
-                        x = left
-                        w = right - left
-                        h = bottom - top
-                        
-                        self.encodeFace = face_recognition.face_encodings(self.frame,known_face_locations=[(y,x+w,y+h,x)])[0]             
-                        cv2.rectangle(self.frame,(x,y),(x+w,y+h),(0,255,0))
-                        area = w * h
-                        if area > biggerArea:
-                            biggerArea = area
-                            self.encodeFace = face_recognition.face_encodings(self.frame,known_face_locations=[(y,x+w,y+h,x)])[0]
-            
+    def findFace(self):
+        ret,frame = self.cap.read()
+        biggerArea = 0
+        encodeFace = []
+        if ret:
+            locations = face_recognition.face_locations(frame)
+            if locations:
+                for detection in locations:
+                    top,right,bottom,left = detection
+                    y = top
+                    x = left
+                    w = right - left
+                    h = bottom - top
+                                    
+                    cv2.rectangle(frame,(x,y),(x+w,y+h),(0,255,0))
+                    area = w * h
+                    if area > biggerArea:
+                        biggerArea = area
+                        encodeFace = face_recognition.face_encodings(frame,known_face_locations=[(y,x+w,y+h,x)])[0]
+            if locations:                
                 for person in self.persons:
-                    if results:    
-                        result = face_recognition.compare_faces([person[1]], self.encodeFace,.5)[0]
+                    if locations:    
+                        result = face_recognition.compare_faces([person[1]], encodeFace,.5)[0]
                         
                         if result == True:
-                            name = person[0]
+                            self.name = person[0]
                             self.id = person[2]
+                            self.actualEncode = person[1]
                             break
                         else:
-                            name = "Desconocido"
-                            
-        
-                if not results:
-                    name = "Nadie"
+                            self.name = "Desconocido"
+                            self.id = None
+                            self.actualEncode = encodeFace
                 
-                self.securityEncode = self.encodeFace
+                    else: break
+            cv2.imshow("Frame",frame)
             self.nameVar.set(self.name)
-            cv2.imshow("Frame",self.frame)    
-            if cv2.waitKey(1) == 27:
-                break
-            self.name = name
-        self.cap.release()
-        cv2.destroyAllWindows() 
+            return encodeFace 
         
     def userController(self):
-        if self.input.get() and self.securityEncode.size > 0 and self.name == "Desconocido":
-            db.setNewFace(self.input.get(),self.securityEncode)
-            self.persons = db.getFaces()
-        if self.input.get() and self.securityEncode.size > 0 and self.name != "Desconocido":
-            db.alterFace(self.input.get(), self.id)
-            self.persons  = db.getFaces()
-    
+        if self.input.get() != "":
+            if self.input.get() and self.securityEncode.size > 0 and self.name == "Desconocido":
+                db.setNewFace(self.input.get(),self.securityEncode)
+                self.persons = db.getFaces()
+            if self.input.get() and self.securityEncode.size > 0 and self.name != "Desconocido":
+                db.alterFace(self.input.get(), self.id)
+                self.persons  = db.getFaces()
+        
     def start(self):
         self.root = tkinter.Tk()
         self.input = tkinter.StringVar()
