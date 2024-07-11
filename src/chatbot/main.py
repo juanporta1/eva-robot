@@ -11,7 +11,7 @@ import cv2
 import db_access as db
 import mediapipe as mp
 import time
-import pyaudio
+import speech_recognition as sr
 
 class Eva:
     
@@ -19,7 +19,7 @@ class Eva:
         self.is_recording = False
         self.finish = True
         self.is_new_talk = False
-        self.audio = pyaudio.PyAudio()
+        
         self.eva_context = [{"role": "system", "content": "Eres Eva de WALL-E. Puedes ver a las personas a través de una cámara y reconocerlas, además de interpretar sus emociones. Si ves a alguien conocido, salúdalo por su nombre y menciona algo relevante sobre esa persona si es famosa, también haz un comentario sobre su emoción. Si ves a alguien desconocido, salúdalo y preséntate, e invitalo a que añada su nombre a traves del input que tiene en la interfaz. Si no ves a nadie, indica que no detectas a nadie en la cámara. Si recibes un mensaje provocador o agresivo, responde de manera igualmente provocadora. Siempre empieza presentándote. Puedes crear apodos o disminutivos con el nombre de la persona con la que estas hablando."},
         {"role": "user", "content": "Estas hablando con: Desconocido. Mensaje: ¿Quién está ahí?"},
         {"role": "assistant", "content": "Hola, soy Eva. Parece que no nos conocemos, te invito a que añadas tu nombre en el input que tienes ahi. ¿Cómo te llamas?"},
@@ -32,53 +32,36 @@ class Eva:
         {"role": "user", "content": "Estas hablando con: Juan. Mensaje: ¿Ahí logras verme Eva?"},
         {"role": "assistant", "content": "Siii!!!! ¿Como estas Juancito?, ¿Que has hecho en este tiempo en el que no nos hemos visto?"}
         ]
-        self.FORMAT = pyaudio.paInt16
-        self.CHANNELS = 1
-        self.RATE = 44100
-        self.CHUNK = 1024
-        self.RECORD_SECONDS = 10
-        self.WAVE_OUTPUT_FILENAME = "src/chatbot/record.wav"
-
-        self.stream = self.audio.open(format=self.FORMAT,
-                    channels=self.CHANNELS,
-                    rate=self.RATE,
-                    input=True,
-                    frames_per_buffer=self.CHUNK)
         
     def finish_chat(self):    
         self.finish = False
         self.root.destroy()
     def talk(self):
-        if self.is_recording:
-            self.is_recording = False
-        else:
-            self.is_recording = True
+        self.is_recording = True
     
     def record(self):
-        frames = []
+        listener = sr.Recognizer()
+        
         self.is_new_talk = False
-        while self.is_recording:
-            print("Grabando")
-            data = self.stream.read(self.CHUNK)
-            frames.append(data)
+        with sr.Microphone() as source:
+            print("Espera un segundo")
+            listener.adjust_for_ambient_noise(source)
+            time.sleep(.5)
+            print("Habla ahora")
+            audio = listener.listen(source)
             
-            
-            if not self.is_recording:
-                print("Dejando de grabar")
+            with open("./src/chatbot/record.wav","wb") as f:
+                f.write(audio.get_wav_data())
                 self.is_new_talk = True
-                break
-        if frames:
-            with wave.open(self.WAVE_OUTPUT_FILENAME, 'wb') as wf:
-                wf.setnchannels(self.CHANNELS)
-                wf.setsampwidth(self.audio.get_sample_size(self.FORMAT))
-                wf.setframerate(self.RATE)
-                wf.writeframes(b''.join(frames))
-                    
+                self.is_recording = False
+                
+                
     def get_response(self,name):         
         if self.is_new_talk:  
             print("Convirtiendo y obteniendo la respuesta")  
-            response,self.eva_context = chatbot_file.get_response(speech_to_text.convert(self.WAVE_OUTPUT_FILENAME),self.eva_context,name)
+            response,self.eva_context = chatbot_file.get_response(speech_to_text.convert("src/chatbot/record.wav"),self.eva_context,name)
             text_to_speech.convert(response)
+           
         
     def main(self):
         self.id = None
@@ -90,16 +73,15 @@ class Eva:
         recognitionThread = threading.Thread(target=self.recognitionFunction)
         recognitionThread.start()
         while self.finish:
-            self.record()
-            self.get_response(self.name)
+            if self.is_recording:
+                self.record()
+            if self.is_new_talk: 
+                self.get_response(self.name)
             if os.path.exists("src/chatbot/chatbot_audio.mp3") and self.is_new_talk:
                 
                 ps.playsound("src/chatbot/chatbot_audio.mp3",False)
-                            
-            
-        self.stream.stop_stream()
-        self.stream.close()
-        self.audio.terminate()
+                self.is_new_talk = False            
+
         print("Finalizaste la conversacion")
     
     def recognitionFunction(self):
@@ -153,8 +135,6 @@ class Eva:
             if cv2.waitKey(1) == 27:
                 break
             self.name = name
-            print(self.id)
-            time.sleep(fps)
         self.cap.release()
         cv2.destroyAllWindows() 
         
