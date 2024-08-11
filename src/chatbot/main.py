@@ -13,6 +13,7 @@ import mediapipe as mp
 import time
 import speech_recognition as sr
 import pyaudio
+import numpy
 class Eva:
     
     def __init__(self):
@@ -20,7 +21,7 @@ class Eva:
         self.finish = True
         self.is_new_talk = False
         
-        self.eva_context = [{"role": "system", "content": "Eres Eva de WALL-E. Puedes ver a las personas a través de una cámara y reconocerlas, además de interpretar sus emociones. Si ves a alguien conocido, salúdalo por su nombre y menciona algo relevante sobre esa persona si es famosa, también haz un comentario sobre su emoción. Si ves a alguien desconocido, salúdalo y preséntate, e invitalo a que añada su nombre a traves del input que tiene en la interfaz. Si no ves a nadie, indica que no detectas a nadie en la cámara. Si recibes un mensaje provocador o agresivo, responde de manera igualmente provocadora. Siempre empieza presentándote. Puedes crear apodos o disminutivos con el nombre de la persona con la que estas hablando."},
+        self.eva_context = [{"role": "system", "content": "Eres Eva de WALL-E. Puedes ver a las personas a través de una cámara y reconocerlas, además de interpretar sus emociones. Si ves a alguien conocido, salúdalo por su nombre y menciona algo relevante sobre esa persona si es famosa, también haz un comentario sobre su emoción. Si ves a alguien desconocido, salúdalo y preséntate, e invitalo a que añada su nombre a traves del input que tiene en la interfaz. Si no ves a nadie, indica que no detectas a nadie en la cámara. Si recibes un mensaje provocador o agresivo, responde de manera igualmente provocadora. Siempre empieza presentándote. Puedes crear apodos o disminutivos con el nombre de la persona con la que estas hablando. Si preguntan quien es tu creador, diras que Juan Porta. Si preguntan sobre tu pasado, hablaras en base a la pelicula de Wall-E."},
         {"role": "user", "content": "Estas hablando con: Desconocido. Mensaje: ¿Quién está ahí?"},
         {"role": "assistant", "content": "Hola, soy Eva. Parece que no nos conocemos, te invito a que añadas tu nombre en el input que tienes ahi. ¿Cómo te llamas?"},
         {"role": "user", "content": "Estas hablando con: Juan. Mensaje: Ahi lo añadí, me llamo Juan."},
@@ -30,7 +31,11 @@ class Eva:
         {"role": "user", "content": "Estas hablando con: Nadie. Mensaje: Hola Eva. ¿Como estás?"},
         {"role": "assistant","content": "Hola quien quiera que este ahi. No puede verte, acercate a mi visor para que pueda reconocerte."},
         {"role": "user", "content": "Estas hablando con: Juan. Mensaje: ¿Ahí logras verme Eva?"},
-        {"role": "assistant", "content": "Siii!!!! ¿Como estas Juancito?, ¿Que has hecho en este tiempo en el que no nos hemos visto?"}
+        {"role": "assistant", "content": "Siii!!!! ¿Como estas Juancito?, ¿Que has hecho en este tiempo en el que no nos hemos visto?"},
+        {"role": "user", "content": "Estas hablando con: Carlos. Mensaje: ¿Quien es tu creador?"},
+        {"role": "assistant", "content": "Mi creador es Juan Porta, ¡Buscalo! Debe estar cerca. ¿Juan donde estas?"},
+        {"role": "user", "content": "Estas hablando con: Juan. Mensaje: Hablame sobre tu pasado."},
+        {"role": "assistant", "content": "Me pongo nostalgica, me crearon para ayudar a los humanos a salvar al planeta de la contaminacion, aun intento cumplir mi proposito, en este viaje conoci a Wall-E, seguramente sabes quien es, hasta el dia de hoy somos grandes amigos."}
         ]
         self.audio = pyaudio.PyAudio()
         self.FORMAT = pyaudio.paInt16
@@ -106,7 +111,7 @@ class Eva:
         print("Entrando en la funcion main")
         self.cap = cv2.VideoCapture(0)
         self.persons = db.getFaces()
-        self.lenLocations = 0
+        
         self.name = "Nadie"
         self.id = None
         while self.finish:
@@ -127,7 +132,7 @@ class Eva:
     def findFace(self):
         ret,frame = self.cap.read()
         biggerArea = 0
-        encodeFace = []
+        encodeFace = numpy.empty((0,0))
         if ret:
             locations = face_recognition.face_locations(frame)
             if locations:
@@ -146,8 +151,7 @@ class Eva:
             
             
             if locations:                
-                for person in self.persons: 
-                    if locations:  
+                for person in self.persons:   
                         result = face_recognition.compare_faces([person[1]], encodeFace,.5)[0]
                         
                         if result == True:
@@ -159,8 +163,8 @@ class Eva:
                             self.name = "Desconocido"
                             self.id = None
                             self.actualEncode = encodeFace
-                            
-                    else: break
+            else: self.name = "Nadie"              
+                    
                 
                  
             # cv2.imshow("Frame",frame)
@@ -172,9 +176,11 @@ class Eva:
             if self.input.get() and self.securityEncode.size > 0 and self.name == "Desconocido":
                 db.setNewFace(self.input.get(),self.securityEncode)
                 self.persons = db.getFaces()
+                self.input.set("")
             if self.input.get() and self.securityEncode.size > 0 and self.name != "Desconocido":
                 db.alterFace(self.input.get(), self.id)
                 self.persons  = db.getFaces()
+                self.input.set("")
         
     def start(self):
         self.root = tk.Tk()
@@ -210,39 +216,39 @@ class Eva:
         self.root.mainloop()
 
     def create_widgets(self):
-        button_hablar = tk.Button(self.frame, textvariable=self.hablar, command=self.talk, bg=self.button_color, fg=self.fg_color, font=("Helvetica", 14))
+        button_hablar = tk.Button(self.frame, textvariable=self.hablar, command=self.talk, bg="#A9CCBB", fg=self.fg_color, font=("Helvetica", 20))
         button_hablar.grid(column=0, row=0,pady=5)
-        label_recording = tk.Label(self.frame, text="¿EVA ESTA ESCUCHANDO?", bg=self.bg_color, fg=self.fg_color, font=("Helvetica", 12))
+        label_recording = tk.Label(self.frame, text="¿EVA ESTA ESCUCHANDO?", bg=self.bg_color, fg=self.fg_color, font=("Helvetica", 16))
         label_recording.grid(column=0, row=1)
-        label_recordingVar = tk.Label(self.frame, textvariable=self.recordingVar, bg=self.bg_color, fg=self.label_color, font=("Helvetica", 12))
+        label_recordingVar = tk.Label(self.frame, textvariable=self.recordingVar, bg=self.bg_color, fg=self.label_color, font=("Helvetica", 16))
         label_recordingVar.grid(column=0, row=2)
         
         button_salir = tk.Button(self.frame, text="Salir", command=self.finish_chat, bg=self.button_color, fg=self.fg_color, font=("Helvetica", 14))
         button_salir.grid(column=0, row=3, pady=10)
 
-        label_nombre = tk.Label(self.frame, text="INGRESE NOMBRE:", bg=self.bg_color, fg=self.fg_color, font=("Helvetica", 12))
+        label_nombre = tk.Label(self.frame, text="INGRESE NOMBRE:", bg=self.bg_color, fg=self.fg_color, font=("Helvetica", 16))
         label_nombre.grid(column=0, row=4)
 
-        entry_input = tk.Entry(self.frame, textvariable=self.input, font=("Helvetica", 12))
+        entry_input = tk.Entry(self.frame, textvariable=self.input, font=("Helvetica", 16))
         entry_input.grid(column=0, row=5, pady=5)
 
         button_reconocimiento = tk.Button(self.frame, text="Crear Reconocimiento", command=self.userController, bg=self.button_color, fg=self.fg_color, font=("Helvetica", 14))
         button_reconocimiento.grid(column=0, row=6)
 
-        label_hablando = tk.Label(self.frame, text="RECONOCE A:", bg=self.bg_color, fg=self.fg_color, font=("Helvetica", 12))
+        label_hablando = tk.Label(self.frame, text="RECONOCE A:", bg=self.bg_color, fg=self.fg_color, font=("Helvetica", 16))
         label_hablando.grid(column=0, row=7, pady=5)
 
-        label_nameVar = tk.Label(self.frame, textvariable=self.nameVar, bg=self.bg_color, fg=self.label_color, font=("Helvetica", 12))
+        label_nameVar = tk.Label(self.frame, textvariable=self.nameVar, bg=self.bg_color, fg=self.label_color, font=("Helvetica", 16))
         label_nameVar.grid(column=0, row=8)
         
-        label_last = tk.Label(self.frame, text="EVA ENTENDIO QUE DIJISTE:", bg=self.bg_color, fg=self.fg_color, font=("Helvetica", 12))
+        label_last = tk.Label(self.frame, text="EVA ENTENDIO QUE DIJISTE:", bg=self.bg_color, fg=self.fg_color, font=("Helvetica", 16))
         label_last.grid(column=0, row=9)
-        label_lastVar = tk.Label(self.frame, textvariable=self.recognitionVar, bg=self.bg_color, fg=self.label_color, font=("Helvetica", 12))
+        label_lastVar = tk.Label(self.frame, textvariable=self.recognitionVar, bg=self.bg_color, fg=self.label_color, font=("Helvetica", 16))
         label_lastVar.grid(column=0, row=10)
         
-        label_lastResponse = tk.Label(self.frame, text="ULTIMA RESPUESTA DE EVA:", bg=self.bg_color, fg=self.fg_color, font=("Helvetica", 12))
+        label_lastResponse = tk.Label(self.frame, text="ULTIMA RESPUESTA DE EVA:", bg=self.bg_color, fg=self.fg_color, font=("Helvetica", 16))
         label_lastResponse.grid(column=0, row=11)
-        label_lastResponseVar = tk.Label(self.frame, textvariable=self.evaResponse, bg=self.bg_color, fg=self.label_color, font=("Helvetica", 12))
+        label_lastResponseVar = tk.Label(self.frame, textvariable=self.evaResponse, bg=self.bg_color, fg=self.label_color, font=("Helvetica", 10))
         label_lastResponseVar.grid(column=0, row=12)
 
     def toggle_fullscreen(self, event=None):
