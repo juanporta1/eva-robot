@@ -17,10 +17,10 @@ import numpy
 class Eva:
     
     def __init__(self):
-        self.is_recording = False
+        self.is_recording = 0
         self.finish = True
         self.is_new_talk = False
-        
+        self.isInRecognition = False
         self.eva_context = [{"role": "system", "content": "Eres Eva de WALL-E. Puedes ver a las personas a través de una cámara y reconocerlas, además de interpretar sus emociones. Si ves a alguien conocido, salúdalo por su nombre y menciona algo relevante sobre esa persona si es famosa, también haz un comentario sobre su emoción. Si ves a alguien desconocido, salúdalo y preséntate, e invitalo a que añada su nombre a traves del input que tiene en la interfaz. Si no ves a nadie, indica que no detectas a nadie en la cámara. Si recibes un mensaje provocador o agresivo, responde de manera igualmente provocadora. Siempre empieza presentándote. Puedes crear apodos o disminutivos con el nombre de la persona con la que estas hablando. Si preguntan quien es tu creador, diras que Juan Porta. Si preguntan sobre tu pasado, hablaras en base a la pelicula de Wall-E."},
         {"role": "user", "content": "Estas hablando con: Desconocido. Mensaje: ¿Quién está ahí?"},
         {"role": "assistant", "content": "Hola, soy Eva. Parece que no nos conocemos, te invito a que añadas tu nombre en el input que tienes ahi. ¿Cómo te llamas?"},
@@ -55,14 +55,15 @@ class Eva:
         self.finish = False
         self.root.destroy()
     def talk(self):
-        if self.is_recording:
-            self.is_recording = False
+        if self.is_recording == 0:
+            self.is_recording = 1
+            self.recordingVar.set("AUN NO")
+            self.hablar.set("EMPIEZA A HABLAR CUANDO ESUCHES EL SONIDO")
+            self.button_hablar.config(state="disabled")
+        elif self.is_recording == 2:
+            self.is_recording = 0
             self.recordingVar.set("NO")
-            self.hablar.set("PRESIONA PARA COMENZAR A HABLAR")
-        else:
-            self.is_recording = True
-            self.recordingVar.set("SI")
-            self.hablar.set("PRESIONA PARA OBTENER LA RESPUESTA")
+            self.hablar.set("PRESIONA PARA COMENZAR A GRABAR TU VOZ")
     
     # def record(self):
         
@@ -116,8 +117,12 @@ class Eva:
         self.id = None
         while self.finish:
             self.securityEncode = self.findFace()
-            if self.is_recording:
+            if self.is_recording == 1 and not self.isInRecognition:
                 self.record()
+                self.is_recording = 2
+                self.recordingVar.set("SI")
+                self.hablar.set("PRESIONA PARA FINALIZAR LA GRABACION")
+                self.button_hablar.config(state="normal")
             if self.is_new_talk: 
                 self.get_response(self.name)
             
@@ -130,6 +135,7 @@ class Eva:
         print("Finalizaste la conversacion")
         
     def findFace(self):
+        self.isInRecognition = True
         ret,frame = self.cap.read()
         biggerArea = 0
         encodeFace = numpy.empty((0,0))
@@ -169,6 +175,7 @@ class Eva:
                  
             # cv2.imshow("Frame",frame)
             self.nameVar.set(self.name.upper())
+            self.isInRecognition = False
             return encodeFace 
         
     def userController(self):
@@ -216,8 +223,8 @@ class Eva:
         self.root.mainloop()
 
     def create_widgets(self):
-        button_hablar = tk.Button(self.frame, textvariable=self.hablar, command=self.talk, bg="#A9CCBB", fg=self.fg_color, font=("Helvetica", 20))
-        button_hablar.grid(column=0, row=0,pady=5)
+        self.button_hablar = tk.Button(self.frame, textvariable=self.hablar, command=self.talk, bg="#A9CCBB", fg=self.fg_color, font=("Helvetica", 20))
+        self.button_hablar.grid(column=0, row=0,pady=5)
         label_recording = tk.Label(self.frame, text="¿EVA ESTA ESCUCHANDO?", bg=self.bg_color, fg=self.fg_color, font=("Helvetica", 16))
         label_recording.grid(column=0, row=1)
         label_recordingVar = tk.Label(self.frame, textvariable=self.recordingVar, bg=self.bg_color, fg=self.label_color, font=("Helvetica", 16))
