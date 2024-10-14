@@ -14,6 +14,7 @@ import time
 import speech_recognition as sr
 import pyaudio
 import numpy
+import playsound
 class Eva:
     
     def __init__(self):
@@ -118,6 +119,7 @@ class Eva:
         while self.finish:
             self.securityEncode = self.findFace()
             if self.is_recording == 1 and not self.isInRecognition:
+                playsound.playsound("src/chatbot/start.mp3",False)
                 self.record()
                 self.is_recording = 2
                 self.recordingVar.set("SI")

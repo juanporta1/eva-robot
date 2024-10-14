@@ -10,7 +10,7 @@ def getFaces():
         
         connection = pymysql.connect(user="jporta553",
                                     password="553Porta",
-                                    port=tunnel.local_bind_port,
+                                    port=3306,
                                     host="127.0.0.1",
                                     database="jporta553")
         if connection is not None:
@@ -34,7 +34,7 @@ def setNewFace(nombre,encode):
         
         connection = pymysql.connect(user="jporta553",
                                     password="553Porta",
-                                    port=tunnel.local_bind_port,
+                                    port=3306,
                                     host="127.0.0.1",
                                     database="jporta553")
         
