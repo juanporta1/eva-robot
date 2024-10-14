@@ -96,7 +96,6 @@ class Eva:
            
         
     def main(self):
-        
         print("Entrando en la funcion main")
         self.cap = cv2.VideoCapture(0)
         self.persons = db.getFaces()
@@ -171,7 +170,6 @@ class Eva:
         self.input = tkinter.StringVar()
         self.nameVar = tkinter.StringVar()
         tkThread = threading.Thread(target=self.main)
-        
         tkThread.start()
        
         tkinter.Button(self.root,text="Hablar",command=self.talk).grid(column=0,row=0,pady=10)
