@@ -121,11 +121,12 @@ class Eva:
             self.securityEncode = self.findFace()
             if self.is_recording == 1 and not self.isInRecognition:
                 playsound.playsound("src/chatbot/start.mp3",False)
-                self.record()
                 self.is_recording = 2
                 self.recordingVar.set("SI")
                 self.hablar.set("PRESIONA PARA FINALIZAR LA GRABACION")
                 self.button_hablar.config(state="normal")
+                self.record()
+                
             if self.is_new_talk: 
                 self.get_response(self.name)
             
