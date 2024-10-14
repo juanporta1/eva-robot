@@ -6,6 +6,7 @@ import tkinter as tk
 import text_to_speech
 import playsound as ps
 import os
+import getJSON
 import face_recognition
 import cv2
 import db_access as db
@@ -173,7 +174,7 @@ class Eva:
                             self.actualEncode = encodeFace
             else: self.name = "Nadie"              
                     
-                
+            if len(self.persons) == 0 and len(locations) != 0: self.name = "Desconocido"   
                  
             # cv2.imshow("Frame",frame)
             self.nameVar.set(self.name.upper())
@@ -190,7 +191,20 @@ class Eva:
                 db.alterFace(self.input.get(), self.id)
                 self.persons  = db.getFaces()
                 self.input.set("")
-        
+    def userControllerJSON(self):
+        if self.input.get != "":
+            if self.input.get() and self.securityEncode.size > 0 and self.name == "Desconocido":
+                
+                getJSON.setNewFace(self.input.get(), self.securityEncode)
+                self.persons = getJSON.getFaces()                
+                self.input.set("")
+                
+                
+            if self.input.get() and self.securityEncode.size > 0 and self.name != "Desconocido":
+                
+                getJSON.alterFace(self.input.get(),self.id)
+                self.persons  = getJSON.getFaces()
+                self.input.set("")
     def start(self):
         self.root = tk.Tk()
         self.input = tk.StringVar()
